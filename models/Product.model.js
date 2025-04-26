@@ -9,6 +9,10 @@ const productSchema =  new mongoose.Schema({
         type:String,
         required:true,
     },
+    images:{
+        type:String,
+        required:true
+    },
     type:{
         type:String,
         required:true,
@@ -21,7 +25,7 @@ const productSchema =  new mongoose.Schema({
         type:Number,
         required:true,
     },
-    quantityTpe:{
+    quantityType:{
         type:String,
         required:true,
     },
