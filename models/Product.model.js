@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const User = require('./User.model');
 
 const productSchema =  new mongoose.Schema({
     title:{
@@ -39,6 +40,7 @@ const productSchema =  new mongoose.Schema({
     },
     owner:{
         type: mongoose.Types.ObjectId,
+        ref :User,
         required:true,
     },
 },{timestamps:{

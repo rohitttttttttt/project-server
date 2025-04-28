@@ -12,6 +12,7 @@ const auth =async (req,res,next) => {
     const decodedToken =  jwt.verify(accessToken , process.env.ATS)
     console.log(decodedToken)
     const user =  await User.findById(decodedToken._id);
+    console.log(user._id)
     if(!user){
         return res.status(404).json({
             message:"user is not legged in "
