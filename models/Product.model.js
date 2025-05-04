@@ -25,7 +25,7 @@ const productSchema =  new mongoose.Schema({
     quantity:{
         type:Number,
         required:true,
-    },
+    }, 
     quantityType:{
         type:String,
         required:true,
@@ -48,3 +48,5 @@ const productSchema =  new mongoose.Schema({
 }})
 const Product = mongoose.model("Product" , productSchema)
 module.exports = Product
+
+//l9dUIEovKzMHZEXA

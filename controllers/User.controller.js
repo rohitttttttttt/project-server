@@ -12,8 +12,8 @@ const signUp = async (req , res) => {
                 message:"some fileds are missing "
             }
         ) 
-    }
-   const isUserAlreadyExist =  await User.findOne({userName})
+    } 
+   const isUserAlreadyExist =  await User.findOne({userName}) 
    if(isUserAlreadyExist){
     return res.status(404).json(
         {
@@ -55,7 +55,8 @@ const signUp = async (req , res) => {
    .status(200)
    .json({
     message:"user registered sucessfuly",
-    safeuser
+    safeuser,
+    accessToken
    })
 
 
@@ -68,11 +69,11 @@ const login =  async (req , res) => {
             message:"user is not registered"
         })
     }
-    const passCorrect = User.isPassCorrect(password);
+    const passCorrect = user.isPassCorrect(password);
     if(!passCorrect){
         return res.status(200).json({
             message:"password is not correct"
-        })
+        }) 
 
     }
     const accessToken =await user.generateAccessToken();
@@ -92,7 +93,8 @@ const login =  async (req , res) => {
    .status(200)
    .json({
     message:"user loggedin  sucessfuly",
-    safeuser
+    safeuser, 
+    accessToken
    })
 
 
@@ -100,4 +102,4 @@ const login =  async (req , res) => {
 }
 
 
-module.exports={signUp}
+module.exports={signUp , login}

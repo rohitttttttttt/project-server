@@ -24,8 +24,8 @@ const router = Router();
 
 router.post(
   "/newProduct",
-  upload.fields([{ name: "images", maxCount: 1 }]),
   auth,
+  upload.fields([{ name: "images", maxCount: 1 }]),
   getProduct
 );
 router.get(

@@ -8,4 +8,4 @@ const { placeOrder } = require('../controllers/Order.controller');
  router.post("/placeOrder" , auth , placeOrder)
 
 
- module.exports = router 
+ module.exports = router  

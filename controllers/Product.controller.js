@@ -5,6 +5,7 @@ const getProduct = async (req , res) => {
     const {userName  , _id} = req.user ;
     const{ title , description , type , subType , quantity ,  quantityType ,price , location } = req.body
    if(!title || !description || !type || !subType || !quantity || !quantityType || !price || !location){
+    console.log("some fields are missing")
     return res.status(404).json({
         message:"some fields are missing "
     })
@@ -29,7 +30,7 @@ const getProduct = async (req , res) => {
 const productToSend =await Product.create({
     title , description ,images, type , subType , quantity ,  quantityType ,price , location , owner:_id
    })
-   
+    console.log("sending response bro ")
    return res.status(200).json({
     message:"product is registered",
     productToSend
@@ -38,7 +39,7 @@ const productToSend =await Product.create({
 
 const homeProduct = async (req , res ) => {
     
-    const productToReturn = await  Product.find().limit(1)
+    const productToReturn = await  Product.find().limit(10)
     if(!productToReturn){
         return res.status(404).json({
             message:"sorry we are out of products "

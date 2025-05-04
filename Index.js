@@ -18,11 +18,14 @@ const dbConnection = async () => {
 
 dbConnection()
 .then(
-    console.log("finally we are connected to database") 
+   console.log("trying to connect with db ")
 )
 
 const app = express();
-app.use(cors())
+app.use(cors({
+    origin:"http://localhost:5173",
+    credentials:true
+}))
 app.use(express.json()) 
 app.use(express.urlencoded({ extended: true }));
 
@@ -37,4 +40,4 @@ app.use("/order" , orderRouter)// route to place order
 
 app.listen(3000 , ()=>{
     console.log("server is running ")
-}) 
+})
