@@ -2,9 +2,9 @@ const express = require('express')
 const jwt = require('jsonwebtoken')
 const User = require('../models/User.model')
 const auth =async (req,res,next) => {
-    console.log("reached here ")
+    
     const accessToken = req.headers["authorization"]?.replace("Bearer","").trim()||req.cookies?.accessToken
-    console.log(accessToken)
+    
     if (typeof accessToken !== "string") {
         return res.status(400).json({ message: "Invalid token format." });
       }
@@ -15,9 +15,9 @@ const auth =async (req,res,next) => {
         })
     }
     const decodedToken =  jwt.verify(accessToken , process.env.ATS)
-    console.log(decodedToken)
+   
     const user =  await User.findById(decodedToken._id);
-    console.log(user._id)
+   
     if(!user){
         return res.status(404).json({   
             message:"user is not legged in "

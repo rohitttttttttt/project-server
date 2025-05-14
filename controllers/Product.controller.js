@@ -38,13 +38,15 @@ const productToSend =await Product.create({
 }
 
 const homeProduct = async (req , res ) => {
-    
-    const productToReturn = await  Product.find().limit(10)
+    const page = req.params.page
+    console.log(page)
+    const skip = (page-1)*10
+    const productToReturn = await  Product.find().skip(skip).limit(10)
     if(!productToReturn){
         return res.status(404).json({
             message:"sorry we are out of products "
         })
-    }
+    } 
 
     return res.status(200).json({
         message:"here are your products",

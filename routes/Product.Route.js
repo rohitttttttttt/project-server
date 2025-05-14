@@ -29,7 +29,7 @@ router.post(
   getProduct
 );
 router.get(
-    "/getProductsforHomePage",
+    "/getProductsforHomePage/:page",
     auth,
     homeProduct
 );
