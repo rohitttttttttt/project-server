@@ -47,8 +47,9 @@ const signUp = async (req , res) => {
    
    
    const options = {
-     secure:true,
-     httpOnly:true
+     secure:false,
+     httpOnly:true,
+     sameSite: 'lax'
    }
     res.cookie("accessToken" , accessToken ,options )
    return res
@@ -62,6 +63,7 @@ const signUp = async (req , res) => {
 
 }
 const login =  async (req , res) => {
+    
     const {userName , password } =  req.body;
     const user = await User.findOne({userName});
     if(!user){
@@ -85,21 +87,43 @@ const login =  async (req , res) => {
    
    
    const options = {
-     secure:true,
-     httpOnly:true
+     secure:false,
+     httpOnly:true,
+     sameSite: 'lax'
    }
     res.cookie("accessToken" , accessToken ,options )
    return res
    .status(200)
    .json({
     message:"user loggedin  sucessfuly",
-    safeuser, 
+    safeuser,
     accessToken
    })
 
 
 
 }
+const getUser = async (req , res)=>{
+    console.log("Id")
+    const Id = req.query.id
+    console.log(Id)
+    if(!Id){
+        return res.status(404).json({
+            message:"id  not found "
+        })
+    }
+    const user = await User.findById(Id).select("-password -refreshToken")
+    if(!user){
+        return res.status(404).json({
+            message:"user is not found "
+        })
+    }
+
+    return res.status(200).json({
+        message:"user found successfully",
+        user  
+    })
+}
 
 
-module.exports={signUp , login}
+module.exports={signUp , login , getUser}

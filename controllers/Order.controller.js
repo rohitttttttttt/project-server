@@ -11,7 +11,7 @@ const placeOrder = async (req , res ) => {
         .status(404)
         .json(
             {
-                message:"some fields are missing "
+                message:"some fields are missing"
             }
         )
     }

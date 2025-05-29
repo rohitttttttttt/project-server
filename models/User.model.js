@@ -44,6 +44,9 @@ const userSchema = new mongoose.Schema(
         },
         refreshToken:{
             type:String,
+        },
+        messages:{
+            type:Array,
         }
 
     },{timestamps:true}

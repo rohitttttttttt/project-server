@@ -5,13 +5,13 @@ const getProduct = async (req , res) => {
     const {userName  , _id} = req.user ;
     const{ title , description , type , subType , quantity ,  quantityType ,price , location } = req.body
    if(!title || !description || !type || !subType || !quantity || !quantityType || !price || !location){
-    console.log("some fields are missing")
+    
     return res.status(404).json({
         message:"some fields are missing "
     })
 
    }
-   console.log(req.files)
+   
    const imgs = req.files.images
    if(!imgs){
     return res.status(404).json({
@@ -30,7 +30,7 @@ const getProduct = async (req , res) => {
 const productToSend =await Product.create({
     title , description ,images, type , subType , quantity ,  quantityType ,price , location , owner:_id
    })
-    console.log("sending response bro ")
+    
    return res.status(200).json({
     message:"product is registered",
     productToSend
@@ -112,6 +112,7 @@ const getProductBySearch = async (req , res) => {
 
 }
 const advanceSearch = async (req, res) => {
+   
     const filter ={};
     const{title ,  type , subType ,price , location , page =1 , sortBy ="price" , limit =10} = req.query;
     if(!title && !type && !subType   && !price && !location){
@@ -124,7 +125,7 @@ const advanceSearch = async (req, res) => {
     }
 
     if(title){
-        filter.title = {$regex:price , $options:"i" };
+        filter.title = {$regex:title , $options:"i" };
     }
     if(type) filter.type=type;
     if(subType) filter.subType = subType;
@@ -136,14 +137,16 @@ const advanceSearch = async (req, res) => {
     }
 
     const skip = (page-1)*limit //isse pata chalega ki total pages kitne same filters ke sath AKA pagination
-    const productToSend = await  Product.find(filter).sort(sortOqtion).skip(skip).limit(limit)
+    const productToSend = await  Product.find(filter).skip(skip).limit(limit)
 
     if( productToSend.length === 0){
         return res.status(404).json({
-            message:"sorry we are out of products "
+            message:"sorry we are out of products"
         })
     }
 
+     console.log("sending")
+     
     return res.status(200).json({
         message:"here are your products",
         productToSend

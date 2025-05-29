@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken')
 const User = require('../models/User.model')
 const auth =async (req,res,next) => {
     
+    
     const accessToken = req.headers["authorization"]?.replace("Bearer","").trim()||req.cookies?.accessToken
     
     if (typeof accessToken !== "string") {
