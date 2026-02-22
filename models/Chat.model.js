@@ -1,32 +1,25 @@
 const mongoose = require('mongoose');
-const User = require('./User.model');
 
-const chatSchema = new mongoose.Schema({
-  User1: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  User2: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  messages: [{
-    owner: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+const conversationSchema = new mongoose.Schema({
+    user1: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
     },
-    message: {
-      type: String,
+    user2: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
     },
-    timestamp: {
-      type: Date,
-      default: Date.now
-    }
-  }]
-});
-const Chat = mongoose.model('Chat', chatSchema);
+    
+    lastMessage: {
+        type: String,
+        default: '',
+    },
+}, { timestamps: true });
 
+conversationSchema.index({ user1: 1 , user2: 1 }, { unique: true });
+conversationSchema.index({  user2: 1 });
 
-module.exports = Chat
+const Conversation = mongoose.model('Conversation', conversationSchema);
+module.exports = Conversation;

@@ -1,12 +1,23 @@
-const express = require('express')
-const {Router} = require('express')
-const router  = Router();
-const {signUp , login, getUser} = require('../controllers/User.controller')
-const auth = require('../middlewares/Auth')
+const { Router } = require('express');
+const router = Router();
+const {
+    signUp,
+    login,
+    logout,
+    refreshAccessToken,
+    getCurrentUser,
+    getUser,
+} = require('../controllers/User.controller');
+const auth = require('../middlewares/Auth');
 
-router.post("/register",signUp)
-router.post("/login",login)
-router.get("/getUser" ,auth ,getUser)
+// --- Public routes ---
+router.post('/register', signUp);
+router.post('/login', login);
+router.post('/refresh-token', refreshAccessToken);
 
+// --- Protected routes ---
+router.post('/logout', auth, logout);
+router.get('/me', auth, getCurrentUser);
+router.get('/:id', auth, getUser);
 
-module.exports=router
+module.exports = router;

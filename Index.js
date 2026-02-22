@@ -10,6 +10,8 @@ const http  = require('http');
 const Chat = require('./models/Chat.model') 
 const { Server } = require('socket.io');
 const User = require('./models/User.model')
+const Order = require('./models/Order.model')
+const Product = require("./models/Product.model")
 
 
 const app = express();
@@ -63,10 +65,9 @@ io.on("connection" , (socket)=>{
   
  socket.on("createConnection" , (userId)=>{
     user[userId] =socket.id
-    console.log(userId)
+    //console.log(userId)
  })
  socket.on("message1" , async (messageToSend , user1 , user2)=>{
-    console.log(messageToSend + "  " + user1 +" "+ user2)
     const reciver =  user[user2]
     const sender = user1
     const finalMessage = [{owner:false , msg:messageToSend , id:Math.random()*9897}]
@@ -84,16 +85,45 @@ io.on("connection" , (socket)=>{
         let userR = await User.findById(user2)
         user.messages.push(userR.userName)
         userR.messages.push(user.userName)
+        await user.save()
+        await userR.save()
        chat = await Chat.create({User1:user1 , User2:user2})
      }
       chat.messages.push({owner:user1, message:messageToSend })
       chat.save()
 
  })
+ socket.on("placeOrder" , async(user1, user2   , product , price ,  quantity , address)=>{
+
+    try {
+         const seller = user[user1]
+     const customer = await User.findById(user2)
+     if(seller){
+        io.to(seller).emit("newOrder",customer.userName , product, price , quantity , address )
+     }
+    await Order.create({
+        seller:user1,
+        customer:user2,
+        productId:product,
+        quantity: quantity,
+        price:price,
+        deliveryAdress:address
+
+     })
+     const P = await Product.findById(product)
+     P.quantity = P.quantity - quantity
+     P.save()
+
+    io.to(user[user2]).emit("feedback" , true) 
+    } catch (error) {
+        console.log(error)
+    }
+     
+ })
 
 })
 
 
-server.listen(3000 , ()=>{
+server.listen(3000 , ()=>{ 
     console.log("server is running ")
 })

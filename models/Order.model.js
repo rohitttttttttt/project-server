@@ -1,44 +1,57 @@
 const mongoose = require('mongoose');
 
-const OrderSchema = new mongoose.Schema({
-    seller:{
-        type: mongoose.Types.ObjectId,
-        ref:"User",
+const orderSchema = new mongoose.Schema({
+    buyer: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true,
     },
-    custoumer:{
-        type: mongoose.Types.ObjectId,
-        ref:"User",
+    seller: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true,
     },
-    productId:{
-        type: mongoose.Types.ObjectId,
-        ref:"Product",
-        required: true,
-    },
-    quantity:{
+    items: [{
+        product: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Product',
+            required: true,
+        },
+        quantity: {
+            type: Number,
+            required: true,
+        },
+        price: {
+            type: Number,
+            required: true,
+        },
+    }],
+    totalAmount: {
         type: Number,
         required: true,
     },
-    quantityType:{
-        type: String,
+    deliveryAddress: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Address',
         required: true,
     },
-    price:{
-        type: Number,
+    status: {
+        type: String,
+        enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'],
+        default: 'pending',
+    },
+    paymentMethod: {
+        type: String,
+        enum: ['COD', 'UPI', 'Card'],
         required: true,
     },
-    deliveryAdress:{
+    paymentStatus: {
         type: String,
-        required: true,
-    }
-
-},{
-    timestamps:true
-})
-
-const Order = mongoose.model("Order" , OrderSchema)
-module.exports = Order
-
-//mongodb+srv://speedcuts29:QITzhmt324KveGQs@cluster0.ptvhaze.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
-//QITzhmt324KveGQs
+        enum: ['pending', 'paid', 'failed'],
+        default: 'pending',
+    },
+}, { timestamps: true });
+orderSchema.index({ buyer: 1 });
+orderSchema.index({ seller: 1 });
+const Order = mongoose.model("Order", orderSchema);
+module.exports = Order;
