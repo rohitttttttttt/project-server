@@ -10,6 +10,6 @@ const categorySchema = new mongoose.Schema({
         required:true
     }]
 }, { timestamps: true });
-categorySchema.index({ name: 1 }, { unique: true });
+categorySchema.index({ Category: 1 }, { unique: true });
 const Category = mongoose.model('Category', categorySchema);
 module.exports = Category;

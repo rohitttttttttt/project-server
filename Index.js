@@ -6,12 +6,14 @@ const userRouter = require('./routes/UserRouter')
 const productRouter = require('./routes/Product.Route')
 const orderRouter = require('./routes/Order.Route')
 const chatRouter = require('./routes/Chat.Route')
+const cartRouter = require('./routes/Cart.Route')
+const reviewRouter = require('./routes/Review.Route')
+const addressRouter = require('./routes/Address.Route')
+const notificationRouter = require('./routes/Notification.Route')
 const http  = require('http');
-const Chat = require('./models/Chat.model') 
-const { Server } = require('socket.io');
-const User = require('./models/User.model')
-const Order = require('./models/Order.model')
-const Product = require("./models/Product.model")
+const {initSocket} = require('./socket/index');
+const {globalLimitter} = require('./middlewares/rateLimiter')
+
 
 
 const app = express();
@@ -36,94 +38,32 @@ dbConnection()
 
 
 app.use(cors({
-    origin:"http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials:true
 }))
 app.use(express.json()) 
 app.use(express.urlencoded({ extended: true }));
+app.use(globalLimitter)
 
 
 
-app.get("/", (req , res )=>{
-    res.send("hello world ")
-})
+
 app.use("/user", userRouter)
 app.use("/product" ,productRouter) 
 app.use("/order" , orderRouter)
 app.use("/chat", chatRouter)
+app.use("/cart", cartRouter)
+app.use("/review", reviewRouter)
+app.use("/address", addressRouter)
+app.use("/notification", notificationRouter)
 
-const io = new Server(server , {
-    cors:{
-    origin:"http://localhost:5173",
-    credentials:true
-}
-})
-
-var user ={};
-
-io.on("connection" , (socket)=>{
-  
- socket.on("createConnection" , (userId)=>{
-    user[userId] =socket.id
-    //console.log(userId)
- })
- socket.on("message1" , async (messageToSend , user1 , user2)=>{
-    const reciver =  user[user2]
-    const sender = user1
-    const finalMessage = [{owner:false , msg:messageToSend , id:Math.random()*9897}]
-    io.to(reciver).emit("message2" , finalMessage , sender  )
-     let chat = await Chat.findOne({
-        $or:[
-            {User1:user1 , User2:user2},
-            {User1:user2 , User2:user1}
-        ]
-    })
-
-     
-     if(!chat){
-        let user =await User.findById(user1)
-        let userR = await User.findById(user2)
-        user.messages.push(userR.userName)
-        userR.messages.push(user.userName)
-        await user.save()
-        await userR.save()
-       chat = await Chat.create({User1:user1 , User2:user2})
-     }
-      chat.messages.push({owner:user1, message:messageToSend })
-      chat.save()
-
- })
- socket.on("placeOrder" , async(user1, user2   , product , price ,  quantity , address)=>{
-
-    try {
-         const seller = user[user1]
-     const customer = await User.findById(user2)
-     if(seller){
-        io.to(seller).emit("newOrder",customer.userName , product, price , quantity , address )
-     }
-    await Order.create({
-        seller:user1,
-        customer:user2,
-        productId:product,
-        quantity: quantity,
-        price:price,
-        deliveryAdress:address
-
-     })
-     const P = await Product.findById(product)
-     P.quantity = P.quantity - quantity
-     P.save()
-
-    io.to(user[user2]).emit("feedback" , true) 
-    } catch (error) {
-        console.log(error)
-    }
-     
- })
-
-})
+initSocket(server);
 
 
-server.listen(3000 , ()=>{ 
-    console.log("server is running ")
+
+
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT , ()=>{ 
+    console.log(`server is running on port ${PORT}`)
 })

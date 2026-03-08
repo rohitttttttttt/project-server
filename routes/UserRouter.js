@@ -9,10 +9,11 @@ const {
     getUser,
 } = require('../controllers/User.controller');
 const auth = require('../middlewares/Auth');
+const {loginLimitter} = require('../middlewares/rateLimiter')
 
 // --- Public routes ---
-router.post('/register', signUp);
-router.post('/login', login);
+router.post('/register',loginLimitter, signUp);
+router.post('/login', loginLimitter, login);
 router.post('/refresh-token', refreshAccessToken);
 
 // --- Protected routes ---

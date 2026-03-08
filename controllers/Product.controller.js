@@ -4,6 +4,7 @@ const User = require("../models/User.model");
 const Category = require("../models/Category.model");
 const Address = require("../models/Address.model");
 const ProductAnalytics = require("../models/ProductAnalytics.model");
+const Review = require("../models/Review.model");
 
 // ═══════════════════════════════════════════════════
 //  SHARED HELPERS
@@ -24,7 +25,7 @@ const PRODUCT_POPULATE = [
 ];
 
 /** Lightweight fields for thumbnail/card views (list APIs) */
-const LITE_SELECT = 'title price unit averageRating numberOfReviews isOrganic ';
+const LITE_SELECT = 'title price unit averageRating numberOfReviews isOrganic images';
 
 const addProduct = async (req , res) => {
 
@@ -315,9 +316,7 @@ const  search = async (req , res)=>{
         if (averageRating != null) {
             query.averageRating = { $gte: averageRating };
         }
-        query.score = { $meta: "textScore" };
-
-        const products = await Product.find(query).select(LITE_SELECT).sort({ score: { $meta: "textScore" } }).skip(skip).limit(limit);
+        const products = await Product.find(query).select(LITE_SELECT + ' score').select({ score: { $meta: "textScore" } }).sort({ score: { $meta: "textScore" } }).skip(skip).limit(limit);
 
         let recommendedProducts 
         if(products.length < 10){
@@ -326,7 +325,7 @@ const  search = async (req , res)=>{
                 ...(category && {categoryId : category}),
                 _id :{$nin : products.map(product => product._id)}
                 
-            }).select(LITE_SELECT).sort({ score: { $meta: "textScore" } }).limi(products.length - 10);
+            }).select(LITE_SELECT).sort({ score: { $meta: "textScore" } }).limit(10 - products.length);
         }
         return res.status(200).json({
             message:"products fetched successfully ",
@@ -341,7 +340,7 @@ const  search = async (req , res)=>{
     }
 }
 
-const getNearByProducts =(req , res)=>{
+const getNearByProducts = async (req , res)=>{
     try {
 
         const {latitude , longitude} = req.body
@@ -361,7 +360,7 @@ const getNearByProducts =(req , res)=>{
                 message:"latitude and longitude should be numbers "
             })
         }
-        const products  = Product.find({
+        const products  = await Product.find({
             location:{
                 $near:{
                     $geometry:{
@@ -386,12 +385,12 @@ const getNearByProducts =(req , res)=>{
     }
 }
 
-const getLatestProducts = (req , res)=>{
+const getLatestProducts = async (req , res)=>{
     try {
         const page = req.query.page || 1;
         const limit = req.query.limit || 10;
         const skip = (page - 1) * limit;
-        const products = Product.find().sort({createdAt:-1}).select(LITE_SELECT).skip(skip).limit(limit)
+        const products = await Product.find().sort({createdAt:-1}).select(LITE_SELECT).skip(skip).limit(limit)
 
         res.status(200).json({
             message:"products fetched successfully ",
@@ -403,13 +402,31 @@ const getLatestProducts = (req , res)=>{
         })
     }
 }
-const getTopRatedProducts = (req , res)=>{
+const getTopRatedProducts = async (req , res)=>{
     try {
         const page = req.query.page || 1;
         const limit = req.query.limit || 10;
         const skip = (page - 1) * limit;
        
-        const products = Product.find().sort({averageRating:-1}).select(LITE_SELECT).skip(skip).limit(limit)
+        const products = await Product.find().sort({averageRating:-1 , numberOfReviews: -1}).select(LITE_SELECT).skip(skip).limit(limit)
+
+        res.status(200).json({
+            message:"products fetched successfully ",
+            products
+        })
+    } catch (error) {
+        return res.status(500).json({
+            message:error.message
+        })
+    }
+}
+const getOrganicProducts = async (req , res)=>{
+    try {
+        const page = req.query.page || 1;
+        const limit = req.query.limit || 10;
+        const skip = (page - 1) * limit;
+       
+        const products = await Product.find({isOrganic:true}).sort({averageRating:-1 , numberOfReviews: -1}).select(LITE_SELECT).skip(skip).limit(limit)
 
         res.status(200).json({
             message:"products fetched successfully ",
@@ -455,40 +472,7 @@ const getProductById = async (req, res) => {
     }
 };
 
-// ═══════════════════════════════════════════════════
-//  HIGHLY RATED  (GET /product/top-rated)
-//  Query: ?minRating=4&page=1&limit=10
-// ═══════════════════════════════════════════════════
-const getTopRated = async (req, res) => {
-    try {
-        const { page, limit, skip } = paginate(req.query);
-        const minRating = parseFloat(req.query.minRating) || 4;
 
-        const filter = {
-            averageRating: { $gte: minRating },
-            numberOfReviews: { $gte: 1 },
-        };
-
-        const [products, total] = await Promise.all([
-            Product.find(filter)
-                .sort({ averageRating: -1, numberOfReviews: -1 })
-                .skip(skip)
-                .limit(limit)
-                .populate(PRODUCT_POPULATE)
-                .lean(),
-            Product.countDocuments(filter),
-        ]);
-
-        return res.status(200).json({
-            success: true,
-            products,
-            pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-        });
-    } catch (error) {
-        console.error('GetTopRated Error:', error.message);
-        return res.status(500).json({ success: false, message: 'Internal server error' });
-    }
-};
 
 // ═══════════════════════════════════════════════════
 //  BY CATEGORY  (GET /product/category/:categoryId)
@@ -601,29 +585,79 @@ const getBySubCategory = async (req, res) => {
 // ═══════════════════════════════════════════════════
 const getHomeFeed = async (req, res) => {
     try {
-        const [latest, topRated, organic] = await Promise.all([
+        const { latitude, longitude } = req.query;
+
+        // Best-seller aggregation pipeline (top 4 by weighted score)
+        const bestSellerPipeline = [
+            {
+                $addFields: {
+                    score: {
+                        $add: [
+                            { $multiply: ["$totalSales", 0.5] },
+                            { $multiply: ["$addToCartCount", 0.3] },
+                            { $multiply: ["$productViews", 0.2] }
+                        ]
+                    }
+                }
+            },
+            { $sort: { score: -1 } },
+            { $limit: 4 },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "productId",
+                    foreignField: "_id",
+                    as: "product"
+                }
+            },
+            { $unwind: "$product" },
+            { $replaceRoot: { newRoot: "$product" } }
+        ];
+
+        // Near-you query (only if coordinates provided)
+        let nearYouPromise = Promise.resolve([]);
+        if (latitude && longitude) {
+            const lng = Number(longitude);
+            const lat = Number(latitude);
+            if (!isNaN(lng) && !isNaN(lat)) {
+                nearYouPromise = Product.find({
+                    location: {
+                        $near: {
+                            $geometry: { type: "Point", coordinates: [lng, lat] }
+                        }
+                    }
+                })
+                    .limit(4)
+                    .select(LITE_SELECT)
+                    .lean();
+            }
+        }
+
+        const [freshlyAdded, topRated, organic, bestSeller, nearYou] = await Promise.all([
             Product.find()
                 .sort({ createdAt: -1 })
-                .limit(10)
-                .populate(PRODUCT_POPULATE)
+                .limit(4)
+                .select(LITE_SELECT)
                 .lean(),
             Product.find({ averageRating: { $gte: 4 }, numberOfReviews: { $gte: 1 } })
                 .sort({ averageRating: -1 })
-                .limit(10)
-                .populate(PRODUCT_POPULATE)
+                .limit(4)
+                .select(LITE_SELECT)
                 .lean(),
             Product.find({ isOrganic: true })
                 .sort({ createdAt: -1 })
-                .limit(10)
-                .populate(PRODUCT_POPULATE)
+                .limit(4)
+                .select(LITE_SELECT)
                 .lean(),
+            ProductAnalytics.aggregate(bestSellerPipeline),
+            nearYouPromise,
         ]);
 
         const categories = await Category.find().select('Category subCategory').lean();
 
         return res.status(200).json({
             success: true,
-            sections: { latest, topRated, organic },
+            sections: { topRated, bestSeller, nearYou, organic, freshlyAdded },
             categories,
         });
     } catch (error) {
@@ -709,39 +743,205 @@ const getSellerProducts = async (req, res) => {
 //        then fetch matching products preserving sort order
 //  Route: GET /product/best-sellers
 // ═══════════════════════════════════════════════════
+const getBestSellers = async (req , res)=>{
+    try {
+        const page = req.query.page || 1 ;
+        const limit = req.query.limit || 10 ;
+        const skip = (page  - 1 ) * limit || 0 ;
+        const products = await ProductAnalytics.aggregate([
+            {
+                $addFields: {
+                    score: {
+                        $add: [
+                            { $multiply: ["$totalSales", 0.5] },
+                            { $multiply: ["$addToCartCount", 0.3] },
+                            { $multiply: ["$productViews", 0.2] }
+                        ]
+                    }
+                }
+            },
+            { $sort: { score: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+
+            
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "productId",
+                    foreignField: "_id",
+                    as: "product"
+                }
+            },
+
+            // CONVERT ARRAY → OBJECT
+            { $unwind: "$product" },
+
+            // IMPORTANT PART 
+            {
+                $project: {
+                    _id: 0,
+                    title: "$product.title",
+                    price: "$product.price",
+                    unit: "$product.unit",
+                    averageRating: "$product.averageRating",
+                    numberOfReviews: "$product.numberOfReviews",
+                    isOrganic: "$product.isOrganic"
+                }
+            }
+        ]);
+        return res.status(200).json({
+            success:true,
+            products
+        })       
+    } catch (error) {
+        return res.status(500).json({
+            message:error.message
+        })
+    }
+}
+// ═══════════════════════════════════════════════════
+//  UPDATE PRODUCT  (PATCH /product/:id)
+//  Auth required — owner only
+// ═══════════════════════════════════════════════════
+const updateProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid product ID' });
+        }
+
+        const product = await Product.findById(id);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
+
+        if (product.userId.toString() !== userId.toString()) {
+            return res.status(403).json({ success: false, message: 'You are not authorized to update this product' });
+        }
+
+        const allowedFields = [
+            'title', 'description', 'categoryId', 'subCategory',
+            'price', 'unit', 'stock', 'minOrderQuantity',
+            'images', 'isOrganic', 'isVeg', 'harvestDate', 'addressId'
+        ];
+
+        const updates = {};
+        for (const field of allowedFields) {
+            if (req.body[field] !== undefined) {
+                updates[field] = req.body[field];
+            }
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ success: false, message: 'No valid fields to update' });
+        }
+
+        // Validate images array if provided
+        if (updates.images) {
+            if (!Array.isArray(updates.images) || updates.images.length > 5 || updates.images.length < 1) {
+                return res.status(400).json({ success: false, message: 'Images must be an array with 1-5 items' });
+            }
+        }
+
+        // Validate categoryId / subCategory if either is being changed
+        if (updates.categoryId || updates.subCategory) {
+            const catId = updates.categoryId || product.categoryId;
+            const category = await Category.findById(catId);
+            if (!category) {
+                return res.status(400).json({ success: false, message: 'Category not found' });
+            }
+            const subCat = updates.subCategory || product.subCategory;
+            if (!category.subCategory.includes(subCat)) {
+                return res.status(400).json({ success: false, message: 'Sub-category not found in category' });
+            }
+        }
+
+        // Validate addressId if provided and update location coordinates
+        if (updates.addressId) {
+            const address = await Address.findById(updates.addressId);
+            if (!address) {
+                return res.status(400).json({ success: false, message: 'Address not found' });
+            }
+            updates.location = {
+                type: "Point",
+                coordinates: [address.long, address.lat]
+            };
+        }
+
+        const updatedProduct = await Product.findByIdAndUpdate(
+            id,
+            { $set: updates },
+            { new: true, runValidators: true }
+        ).populate(PRODUCT_POPULATE);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Product updated successfully',
+            product: updatedProduct
+        });
+    } catch (error) {
+        console.error('UpdateProduct Error:', error.message);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
 
 // ═══════════════════════════════════════════════════
-//  TODO: NEAR YOU — LEFT FOR YOU TO PRACTICE 🏋️
-//  Hint: Use $near with $geometry on the location field
-//        Accept lat, lng, radius (km) from query params
-//        Convert km to meters for $maxDistance
-//  Route: GET /product/near-me?lat=19.07&lng=72.87&radius=25
+//  DELETE PRODUCT  (DELETE /product/:id)
+//  Auth required — owner only, cascade-deletes analytics & reviews
 // ═══════════════════════════════════════════════════
+const deleteProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
 
-// ═══════════════════════════════════════════════════
-//  TODO: UPDATE PRODUCT — LEFT FOR YOU TO PRACTICE 🏋️
-//  Hint: PATCH /product/:id  (auth required)
-//        Verify req.user._id === product.userId (owner check)
-//        Use findByIdAndUpdate with { new: true, runValidators: true }
-// ═══════════════════════════════════════════════════
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid product ID' });
+        }
 
-// ═══════════════════════════════════════════════════
-//  TODO: DELETE PRODUCT — LEFT FOR YOU TO PRACTICE 🏋️
-//  Hint: DELETE /product/:id  (auth required)
-//        Verify ownership, then cascade-delete:
-//        ProductAnalytics, Reviews for this product
-// ═══════════════════════════════════════════════════
+        const product = await Product.findById(id);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
+
+        if (product.userId.toString() !== userId.toString()) {
+            return res.status(403).json({ success: false, message: 'You are not authorized to delete this product' });
+        }
+
+        // Cascade delete: remove analytics, reviews, and the product itself
+        await Promise.all([
+            ProductAnalytics.deleteMany({ productId: id }),
+            Review.deleteMany({ productId: id }),
+            Product.findByIdAndDelete(id)
+        ]);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Product and related data deleted successfully'
+        });
+    } catch (error) {
+        console.error('DeleteProduct Error:', error.message);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
 
 
 module.exports = {
     addProduct,
     search,
+    getNearByProducts,
+    getLatestProducts,
+    getTopRatedProducts,
+    getOrganicProducts,
     getProductById,
-    getTopRated,
     getByCategory,
     getBySubCategory,
     getHomeFeed,
     getMyProducts,
     getSellerProducts,
+    getBestSellers,
+    updateProduct,
+    deleteProduct,
 };
-
