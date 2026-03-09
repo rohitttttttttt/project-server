@@ -38,7 +38,7 @@ dbConnection()
 
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "htttp://orbitfarm.vercel.app",
     credentials:true
 }))
 app.use(express.json()) 
@@ -47,7 +47,9 @@ app.use(globalLimitter)
 
 
 
-
+app.get("/" , (req , res)=>{
+    res.send("Hello")
+})
 app.use("/user", userRouter)
 app.use("/product" ,productRouter) 
 app.use("/order" , orderRouter)
