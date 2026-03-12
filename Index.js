@@ -37,7 +37,7 @@ dbConnection()
 )
 
 
-const allowedOrigin = process.env.FRONTEND_URL || "https://orbitfarms.vercel.app";
+const allowedOrigin = (process.env.FRONTEND_URL || "https://orbitfarms.vercel.app").replace(/\/+$/, '');
 
 app.use(cors({
     origin: function (origin, callback) {
