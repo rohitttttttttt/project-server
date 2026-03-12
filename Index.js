@@ -37,9 +37,21 @@ dbConnection()
 )
 
 
+const allowedOrigin = process.env.FRONTEND_URL || "https://orbitfarms.vercel.app";
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || "htttp://orbitfarm.vercel.app",
-    credentials:true
+    origin: function (origin, callback) {
+        // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+        if (!origin) return callback(null, true);
+
+        if (origin === allowedOrigin) {
+            callback(null, true);
+        } else {
+            console.warn(`[CORS BLOCKED] Origin "${origin}" is not allowed. Allowed: "${allowedOrigin}"`);
+            callback(new Error(`CORS policy: Origin "${origin}" is not allowed.`));
+        }
+    },
+    credentials: true
 }))
 app.use(express.json()) 
 app.use(express.urlencoded({ extended: true }));
